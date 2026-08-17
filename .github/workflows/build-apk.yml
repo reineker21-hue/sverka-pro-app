@@ -55,6 +55,7 @@ jobs:
           python automation_patch.py
           python fns_protocol_patch.py
           python reconcile_accuracy_patch.py
+          python stability_excel_ui_patch.py
           python generate_assets.py
 
       - name: Verify Python source
