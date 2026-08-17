@@ -49,5 +49,8 @@ source = Path('main.py').read_text(encoding='utf-8')
 assert 'MainScreen.run_compare = _stable_run_compare' in source
 assert 'Thread(target=' not in source
 assert 'faulthandler.enable' not in source
-assert '__version__ = "1.11.0"' in source
+assert '__version__ = "1.12.0"' in source
+assert 'self.result_label.markup = False' in source
+assert 'self.result_label.height = dp(190)' not in source
+assert '[b]Сверка завершена[/b]' not in source
 print(f'Runtime smoke test OK: 2500+2500 документов за {elapsed:.2f} сек.')
