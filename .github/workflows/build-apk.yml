@@ -56,7 +56,7 @@ jobs:
           python fns_protocol_patch.py
           python reconcile_accuracy_patch.py
           python stability_excel_ui_patch.py
-          python safe_compare_patch.py
+          python lean_runtime_patch.py
           python generate_assets.py
 
       - name: Verify Python source
