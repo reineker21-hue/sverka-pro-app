@@ -37,7 +37,7 @@ public final class XlsxReportWriter {
         List<Sheet> sheets = new ArrayList<>();
         List<List<Object>> summary = new ArrayList<>();
         summary.add(List.of("СВЕРКА ПРО — ИТОГ", ""));
-        summary.add(List.of("Версия приложения", "2.0.1 — нативный Android"));
+        summary.add(List.of("Версия приложения", "2.0.2 — нативный Android"));
         summary.add(List.of("Акт 1", result.first().sourceName));
         summary.add(List.of("Акт 2", result.second().sourceName));
         summary.add(List.of("Строк в акте 1", result.first().rows.size()));
@@ -207,7 +207,7 @@ public final class XlsxReportWriter {
         for (Sheet sheet : sheets) titles.append("<vt:lpstr>").append(escape(sheet.name)).append("</vt:lpstr>");
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
                 + "<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\" xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\">"
-                + "<Application>Сверка ПРО 2.0.1</Application><TitlesOfParts><vt:vector size=\"" + sheets.size()
+                + "<Application>Сверка ПРО 2.0.2</Application><TitlesOfParts><vt:vector size=\"" + sheets.size()
                 + "\" baseType=\"lpstr\">" + titles + "</vt:vector></TitlesOfParts></Properties>";
     }
 
