@@ -49,6 +49,18 @@ public final class NativeEngineTest {
         }
         require(rejected, "Пустой результат распознавания должен блокировать ложную сверку");
 
+        List<List<Object>> damagedHeaders = new ArrayList<>();
+        damagedHeaders.add(List.of("Дата", "X1", "X2", "X3", "X4", "X5"));
+        damagedHeaders.add(List.of("1", "Сальдо на 01.07.26", "", 1000.0, "", ""));
+        damagedHeaders.add(List.of("2", "Отгрузка 01.07.26 ( №УТ-1)", "", 150.75, "", "точка"));
+        damagedHeaders.add(List.of("3", "Оплата 02.07.26 ( №00001)", "", "", 50.25, ""));
+        TableData inferred = TableData.fromMatrix("damaged-headers.xls", "Лист1", damagedHeaders);
+        require("X3".equals(inferred.columns.get("debit")), "Дебет не восстановлен по данным");
+        require("X4".equals(inferred.columns.get("credit")), "Кредит не восстановлен по данным");
+        require("X1".equals(inferred.columns.get("document")), "Документ не восстановлен по данным");
+        ReconciliationEngine.Result inferredResult = ReconciliationEngine.compare(inferred, inferred, 0.01);
+        require(inferredResult.matches().size() == 2, "Сверка с повреждёнными заголовками не работает");
+
         byte[] csv = "Дата;Документ;Дебет;Кредит\n01.07.26;Оплата № 1;;10,50\n".getBytes(StandardCharsets.UTF_8);
         TableData csvTable = SpreadsheetReader.read(new ByteArrayInputStream(csv), "sample.csv");
         require(csvTable.rows.size() == 1, "CSV прочитан неверно");
