@@ -50,8 +50,16 @@ jobs:
         run: |
           test -f app/build/outputs/apk/debug/app-debug.apk
           unzip -t app/build/outputs/apk/debug/app-debug.apk >/dev/null
-          cp app/build/outputs/apk/debug/app-debug.apk Sverka-PRO-2.0.0-native.apk
-          sha256sum Sverka-PRO-2.0.0-native.apk
+          cp app/build/outputs/apk/debug/app-debug.apk Sverka-PRO-2.0.1-xls-fix.apk
+          sha256sum Sverka-PRO-2.0.1-xls-fix.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sverka-PRO-2.0.1-XLS-Fix
+          path: Sverka-PRO-2.0.1-xls-fix.apk
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Enable KVM
         run: |
@@ -68,11 +76,3 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash .github/scripts/run_native_selftest.sh
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: Sverka-PRO-Native-APK
-          path: Sverka-PRO-2.0.0-native.apk
-          if-no-files-found: error
-          retention-days: 14
