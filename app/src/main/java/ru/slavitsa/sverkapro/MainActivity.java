@@ -30,7 +30,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import ru.slavitsa.sverkapro.core.ReconciliationEngine;
-import ru.slavitsa.sverkapro.core.SpreadsheetReader;
 import ru.slavitsa.sverkapro.core.TableData;
 import ru.slavitsa.sverkapro.core.XlsxReportWriter;
 
@@ -141,7 +140,7 @@ public final class MainActivity extends Activity {
         line.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         card.addView(line);
 
-        TextView version = text("Версия 2.0.0 · новый движок", 12, GREEN, true);
+        TextView version = text("Версия 2.0.1 · исправлено чтение XLS", 12, GREEN, true);
         version.setPadding(0, dp(10), 0, 0);
         card.addView(version);
         return card;
@@ -275,7 +274,7 @@ public final class MainActivity extends Activity {
         worker.execute(() -> {
             try (InputStream input = getContentResolver().openInputStream(uri)) {
                 if (input == null) throw new IllegalArgumentException("Android не смог открыть выбранный файл.");
-                TableData table = SpreadsheetReader.read(input, name);
+                TableData table = AndroidSpreadsheetReader.read(input, name);
                 CrashLogger.breadcrumb("load:ok target=" + target + " rows=" + table.rows.size());
                 runOnUiThread(() -> applyLoadedAct(table, target));
             } catch (Exception error) {
@@ -425,6 +424,12 @@ public final class MainActivity extends Activity {
     private void runNativeSelfTest() {
         CrashLogger.breadcrumb("selftest:start");
         try {
+            TableData xlsFixture = AndroidSpreadsheetReader.createAndReadSelfTestXls();
+            if (xlsFixture.rows.size() != 2
+                    || !(xlsFixture.rows.get(0).get("Дебет") instanceof Number)
+                    || !(xlsFixture.rows.get(1).get("Кредит") instanceof Number)) {
+                throw new IllegalStateException("XLS self-test failed");
+            }
             List<List<Object>> firstRows = new ArrayList<>();
             List<List<Object>> secondRows = new ArrayList<>();
             firstRows.add(List.of("Дата", "Документ", "Дебет", "Кредит"));
