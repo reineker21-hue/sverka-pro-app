@@ -140,7 +140,7 @@ public final class MainActivity extends Activity {
         line.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         card.addView(line);
 
-        TextView version = text("Версия 2.0.1 · исправлено чтение XLS", 12, GREEN, true);
+        TextView version = text("Версия 2.0.2 · автоопределение колонок XLS", 12, GREEN, true);
         version.setPadding(0, dp(10), 0, 0);
         card.addView(version);
         return card;
