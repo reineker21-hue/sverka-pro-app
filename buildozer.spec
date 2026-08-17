@@ -11,12 +11,13 @@ fullscreen = 0
 
 android.api = 35
 android.minapi = 23
-android.ndk = 29
+android.ndk = 25b
 android.ndk_api = 23
 android.accept_sdk_license = True
 android.archs = arm64-v8a, armeabi-v7a
 android.debug_artifact = apk
 p4a.bootstrap = sdl2
+p4a.branch = v2023.09.16
 
 [buildozer]
 log_level = 2
