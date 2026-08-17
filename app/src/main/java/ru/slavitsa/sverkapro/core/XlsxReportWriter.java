@@ -37,7 +37,7 @@ public final class XlsxReportWriter {
         List<Sheet> sheets = new ArrayList<>();
         List<List<Object>> summary = new ArrayList<>();
         summary.add(List.of("СВЕРКА ПРО — ИТОГ", ""));
-        summary.add(List.of("Версия приложения", "2.0.0 — нативный Android"));
+        summary.add(List.of("Версия приложения", "2.0.1 — нативный Android"));
         summary.add(List.of("Акт 1", result.first().sourceName));
         summary.add(List.of("Акт 2", result.second().sourceName));
         summary.add(List.of("Строк в акте 1", result.first().rows.size()));
@@ -88,8 +88,12 @@ public final class XlsxReportWriter {
 
     private static String sheetXml(Sheet sheet) {
         StringBuilder xml = new StringBuilder(32_768);
+        int rows = Math.max(1, sheet.rows.size());
+        int columns = Math.max(1, maxColumns(sheet.rows));
+        String range = "A1:" + cellReference(columns - 1, rows);
         xml.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")
                 .append("<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">")
+                .append("<dimension ref=\"").append(range).append("\"/>")
                 .append("<sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews>")
                 .append("<sheetFormatPr defaultRowHeight=\"18\"/><sheetData>");
         for (int rowIndex = 0; rowIndex < sheet.rows.size(); rowIndex++) {
@@ -102,9 +106,7 @@ public final class XlsxReportWriter {
             }
             xml.append("</row>");
         }
-        xml.append("</sheetData><autoFilter ref=\"A1:")
-                .append(cellReference(Math.max(0, maxColumns(sheet.rows) - 1), Math.max(1, sheet.rows.size())))
-                .append("\"/></worksheet>");
+        xml.append("</sheetData><autoFilter ref=\"").append(range).append("\"/></worksheet>");
         return xml.toString();
     }
 
@@ -205,7 +207,7 @@ public final class XlsxReportWriter {
         for (Sheet sheet : sheets) titles.append("<vt:lpstr>").append(escape(sheet.name)).append("</vt:lpstr>");
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
                 + "<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\" xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\">"
-                + "<Application>Сверка ПРО 2.0</Application><TitlesOfParts><vt:vector size=\"" + sheets.size()
+                + "<Application>Сверка ПРО 2.0.1</Application><TitlesOfParts><vt:vector size=\"" + sheets.size()
                 + "\" baseType=\"lpstr\">" + titles + "</vt:vector></TitlesOfParts></Properties>";
     }
 
