@@ -2,8 +2,8 @@ from pathlib import Path
 
 path = Path('main.py')
 text = path.read_text(encoding='utf-8')
-if '__version__ = "1.10.0"' not in text:
-    raise RuntimeError('Android self-test patch ожидает версию 1.10.0')
+if '__version__ = "1.11.0"' not in text:
+    raise RuntimeError('Android self-test patch ожидает версию 1.11.0')
 
 BLOCK = r'''
 # ===== CI Android compare self-test =====
