@@ -19,7 +19,7 @@ public final class XlsxReportWriter {
 
     public static void write(ReconciliationEngine.Result result, OutputStream output) throws IOException {
         List<Sheet> sheets = buildSheets(result);
-        try (ZipOutputStream zip = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+        try (ZipOutputStream zip = new ZipOutputStream(output)) {
             put(zip, "[Content_Types].xml", contentTypes(sheets.size()));
             put(zip, "_rels/.rels", rootRelationships());
             put(zip, "docProps/app.xml", appProperties(sheets));
