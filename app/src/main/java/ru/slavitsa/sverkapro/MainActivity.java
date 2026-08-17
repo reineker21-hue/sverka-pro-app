@@ -140,7 +140,7 @@ public final class MainActivity extends Activity {
         line.addView(titles, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1));
         card.addView(line);
 
-        TextView version = text("Версия 2.0.2 · автоопределение колонок XLS", 12, GREEN, true);
+        TextView version = text("Версия 2.0.3 · исправлена кириллица XLS", 12, GREEN, true);
         version.setPadding(0, dp(10), 0, 0);
         card.addView(version);
         return card;
@@ -427,7 +427,8 @@ public final class MainActivity extends Activity {
             TableData xlsFixture = AndroidSpreadsheetReader.createAndReadSelfTestXls();
             if (xlsFixture.rows.size() != 2
                     || !(xlsFixture.rows.get(0).get("Дебет") instanceof Number)
-                    || !(xlsFixture.rows.get(1).get("Кредит") instanceof Number)) {
+                    || !(xlsFixture.rows.get(1).get("Кредит") instanceof Number)
+                    || !String.valueOf(xlsFixture.rows.get(0).get("Документ")).contains("Поступление")) {
                 throw new IllegalStateException("XLS self-test failed");
             }
             List<List<Object>> firstRows = new ArrayList<>();
