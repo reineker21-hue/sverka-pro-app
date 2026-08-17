@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-apk_path="Sverka-PRO-2.0.1-xls-fix.apk"
+apk_path="Sverka-PRO-2.0.2-column-fix.apk"
 test -f "$apk_path"
 adb install -r "$apk_path"
 adb logcat -c
