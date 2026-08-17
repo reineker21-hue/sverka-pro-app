@@ -18,6 +18,7 @@ import jxl.NumberCell;
 import jxl.Sheet;
 import jxl.Workbook;
 import jxl.WorkbookSettings;
+import jxl.biff.StringHelper;
 import jxl.write.Label;
 import jxl.write.WritableSheet;
 import jxl.write.WritableWorkbook;
@@ -28,24 +29,43 @@ final class AndroidSpreadsheetReader {
             (byte) 0xD0, (byte) 0xCF, 0x11, (byte) 0xE0,
             (byte) 0xA1, (byte) 0xB1, 0x1A, (byte) 0xE1};
 
+    static {
+        // JExcelAPI defaults to the obsolete alias "UnicodeLittle". On Android
+        // it corrupts some BIFF8 shared strings with U+FFFD replacement signs.
+        StringHelper.UNICODE_ENCODING = "UTF-16LE";
+    }
+
     private AndroidSpreadsheetReader() {}
 
     static TableData read(InputStream input, String sourceName) throws Exception {
         byte[] data = readLimited(input);
         if (!isOle(data)) return SpreadsheetReader.read(new ByteArrayInputStream(data), sourceName);
 
+        TableData nativeTable = null;
+        Throwable nativeError = null;
         try {
-            TableData table = readLegacyXls(data, sourceName);
-            CrashLogger.breadcrumb("xls:reader=jexcel rows=" + table.rows.size());
-            return table;
-        } catch (Exception | LinkageError primaryError) {
-            CrashLogger.breadcrumb("xls:jexcel-fallback type=" + primaryError.getClass().getSimpleName());
-            try {
-                return SpreadsheetReader.read(new ByteArrayInputStream(data), sourceName);
-            } catch (Exception fallbackError) {
-                fallbackError.addSuppressed(primaryError);
-                throw fallbackError;
+            nativeTable = SpreadsheetReader.read(new ByteArrayInputStream(data), sourceName);
+        } catch (Exception | LinkageError error) {
+            nativeError = error;
+        }
+
+        try {
+            TableData jexcelTable = readLegacyXls(data, sourceName);
+            if (nativeTable != null && nativeTable.rows.size() == jexcelTable.rows.size()) {
+                TableData merged = mergeTextAndNumbers(nativeTable, jexcelTable);
+                CrashLogger.breadcrumb("xls:reader=merged rows=" + merged.rows.size());
+                return merged;
             }
+            CrashLogger.breadcrumb("xls:reader=jexcel rows=" + jexcelTable.rows.size());
+            return jexcelTable;
+        } catch (Exception | LinkageError jexcelError) {
+            if (nativeTable != null) {
+                CrashLogger.breadcrumb("xls:reader=native rows=" + nativeTable.rows.size());
+                return nativeTable;
+            }
+            if (nativeError != null) jexcelError.addSuppressed(nativeError);
+            if (jexcelError instanceof Exception exception) throw exception;
+            throw (LinkageError) jexcelError;
         }
     }
 
@@ -98,6 +118,27 @@ final class AndroidSpreadsheetReader {
         } finally {
             workbook.close();
         }
+    }
+
+    private static TableData mergeTextAndNumbers(TableData textTable, TableData numberTable) {
+        List<List<Object>> matrix = new ArrayList<>(textTable.rows.size() + 1);
+        matrix.add(new ArrayList<>(textTable.headers));
+        int columns = textTable.headers.size();
+        for (int rowIndex = 0; rowIndex < textTable.rows.size(); rowIndex++) {
+            List<Object> row = new ArrayList<>(columns);
+            for (int columnIndex = 0; columnIndex < columns; columnIndex++) {
+                String textHeader = textTable.headers.get(columnIndex);
+                Object value = textTable.rows.get(rowIndex).get(textHeader);
+                if (columnIndex < numberTable.headers.size()) {
+                    String numberHeader = numberTable.headers.get(columnIndex);
+                    Object numericValue = numberTable.rows.get(rowIndex).get(numberHeader);
+                    if (numericValue instanceof Number) value = numericValue;
+                }
+                row.add(value);
+            }
+            matrix.add(row);
+        }
+        return TableData.fromMatrix(textTable.sourceName, textTable.sheetName, matrix);
     }
 
     private static Object cellValue(Cell cell) {
