@@ -1,13 +1,15 @@
 [app]
-title = Сверка PRO
+title = Сравнение АС from NB
 package.name = sverkapro
 package.domain = ru.slavitsa
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
-version = 1.1.0
-requirements = python3,kivy,openpyxl,et_xmlfile,pyjnius
+version = 1.2.0
+requirements = python3,kivy,openpyxl,et_xmlfile,pyjnius,xlrd==2.0.1
 orientation = portrait
 fullscreen = 0
+icon.filename = %(source.dir)s/assets/icon.png
+presplash.filename = %(source.dir)s/assets/presplash.png
 
 android.api = 34
 android.minapi = 23

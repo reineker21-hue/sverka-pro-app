@@ -46,7 +46,12 @@ jobs:
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install buildozer "cython==0.29.36"
+          python -m pip install buildozer "cython==0.29.36" pillow
+
+      - name: Apply app changes
+        run: |
+          python prebuild_patch.py
+          python generate_assets.py
 
       - name: Verify Python source
         run: python -m py_compile main.py

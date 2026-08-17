@@ -12,6 +12,13 @@ def replace_once(old, new, label):
 
 
 replace_once('__version__ = "1.1.0"', '__version__ = "1.2.0"', "версия")
+replace_once('APP_NAME = "Сверка PRO"', 'APP_NAME = "Сравнение АС from NB"\nAPP_ICON = "assets/icon.png"', "название")
+
+replace_once(
+    "from kivy.uix.gridlayout import GridLayout\nfrom kivy.uix.label import Label",
+    "from kivy.uix.gridlayout import GridLayout\nfrom kivy.uix.image import Image\nfrom kivy.uix.label import Label",
+    "импорт Image",
+)
 
 old_read_table = '''def read_table(path):
     ext = Path(path).suffix.lower()
@@ -23,7 +30,7 @@ old_read_table = '''def read_table(path):
 '''
 
 new_read_table = '''def read_xls(path):
-    """Read classic Excel 97-2003 .xls files, including common 1C exports."""
+    # Read classic Excel 97-2003 .xls files, including common 1C exports.
     import xlrd
 
     book = xlrd.open_workbook(path, on_demand=True)
@@ -68,7 +75,7 @@ def read_table(path):
         return read_xls(path)
     if ext == ".xlsx":
         return read_xlsx(path)
-    raise ValueError("Поддерживаются XLSX, XLS и CSV.")
+    raise ValueError("Поддерживаются XLS, XLSX и CSV.")
 '''
 replace_once(old_read_table, new_read_table, "поддержка XLS")
 
@@ -88,7 +95,7 @@ replace_once(
         return ".csv"''',
 '''    if "spreadsheetml" in mime or "xlsx" in mime:
         return ".xlsx"
-    if "ms-excel" in mime:
+    if "ms-excel" in mime or mime == "application/excel":
         return ".xls"
     if "csv" in mime:
         return ".csv"''',
@@ -103,17 +110,55 @@ replace_once(
 "расширение XLS",
 )
 
+old_header = '''        header = Card(radius=22)
+        header.add_widget(text_label(APP_NAME, size=24, bold=True, height=38))
+        header.add_widget(text_label("Сверяйте два акта и сохраняйте понятный Excel-отчет", size=13, color=MUTED, height=38, valign="top"))
+        header.add_widget(text_label(f"Версия {__version__}  •  Android", size=11, color=PRIMARY, bold=True, height=22))
+        root.add_widget(header)
+'''
+
+new_header = '''        header = Card(radius=22)
+        brand = BoxLayout(orientation="horizontal", spacing=dp(12), size_hint_y=None, height=dp(62))
+        brand.add_widget(Image(source=APP_ICON, size_hint=(None, None), size=(dp(54), dp(54)), fit_mode="contain"))
+        brand_text = BoxLayout(orientation="vertical", spacing=dp(1))
+        brand_text.add_widget(text_label(APP_NAME, size=21, bold=True, height=34))
+        brand_text.add_widget(text_label("Сверка актов без лишних действий", size=12, color=MUTED, height=24))
+        brand.add_widget(brand_text)
+        header.add_widget(brand)
+        header.add_widget(text_label(f"Версия {__version__}  •  Android", size=11, color=PRIMARY, bold=True, height=22))
+        root.add_widget(header)
+'''
+replace_once(old_header, new_header, "логотип на первом экране")
+
 replace_once(
 'files.add_widget(text_label("Выберите два акта в XLSX или CSV", size=12, color=MUTED, height=24))',
-'files.add_widget(text_label("Выберите два акта в XLSX, XLS или CSV", size=12, color=MUTED, height=24))',
+'files.add_widget(text_label("Выберите два акта в XLS, XLSX или CSV", size=12, color=MUTED, height=24))',
 "подпись форматов",
 )
 
 replace_once(
 'actions.add_widget(text_label("Поддерживаются XLSX и CSV. Нестандартные XLSX из 1С читаются в резервном режиме.", size=11, color=MUTED, height=38, valign="top"))',
-'actions.add_widget(text_label("Поддерживаются XLSX, XLS и CSV. Выгрузки из 1С обрабатываются автоматически.", size=11, color=MUTED, height=38, valign="top"))',
+'actions.add_widget(text_label("Поддерживаются XLS, XLSX и CSV. Выгрузки из 1С обрабатываются автоматически.", size=11, color=MUTED, height=38, valign="top"))',
 "нижняя подпись форматов",
 )
 
+replace_once(
+'["СВЕРКА PRO — ИТОГ", ""]',
+'["СРАВНЕНИЕ АС — ИТОГ", ""]',
+"название отчета",
+)
+
+replace_once(
+'''    def build(self):
+        Window.clearcolor = BG
+        self.pending_open_callback = None''',
+'''    def build(self):
+        Window.clearcolor = BG
+        self.title = APP_NAME
+        self.icon = APP_ICON
+        self.pending_open_callback = None''',
+"иконка Kivy",
+)
+
 path.write_text(text, encoding="utf-8")
-print("Prebuild patch applied: XLS support + UI labels + version 1.2.0")
+print("Prebuild patch applied: XLS + new branding + logo + version 1.2.0")
