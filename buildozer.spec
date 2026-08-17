@@ -4,8 +4,8 @@ package.name = sverkapro
 package.domain = ru.slavitsa
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas
-version = 1.0.1
-requirements = python3,kivy,openpyxl,pyjnius
+version = 1.0.2
+requirements = python3,kivy,openpyxl,et_xmlfile,pyjnius
 orientation = portrait
 fullscreen = 0
 
