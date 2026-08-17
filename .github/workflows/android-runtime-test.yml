@@ -84,7 +84,7 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
-            set -euxo pipefail
+            set -eu
             APK=$(find bin -maxdepth 1 -name '*.apk' -print -quit)
             test -n "$APK"
             adb install -r "$APK"
@@ -100,7 +100,10 @@ jobs:
               fi
               sleep 1
             done
-            grep -q 'SVERKA_SELFTEST_OK' /tmp/sverka-logcat.txt
+            if ! grep -q 'SVERKA_SELFTEST_OK' /tmp/sverka-logcat.txt; then
+              cat /tmp/sverka-logcat.txt
+              exit 1
+            fi
             PID=$(adb shell pidof ru.slavitsa.sverkapro | tr -d '\r')
             test -n "$PID"
             ! grep -E 'SVERKA_SELFTEST_FAIL|FATAL EXCEPTION|Fatal Python error|SIGSEGV|ANR in ru.slavitsa.sverkapro' /tmp/sverka-logcat.txt
