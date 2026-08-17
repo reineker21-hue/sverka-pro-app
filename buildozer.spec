@@ -11,6 +11,7 @@ fullscreen = 0
 
 android.api = 35
 android.minapi = 23
+android.ndk = 29
 android.ndk_api = 23
 android.accept_sdk_license = True
 android.archs = arm64-v8a, armeabi-v7a
