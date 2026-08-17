@@ -104,12 +104,12 @@ public final class CrashLogger {
     }
 
     private static String appVersion(Context context) {
-        if (context == null) return "2.0.1";
+        if (context == null) return "2.0.2";
         try {
             PackageInfo info = context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
-            return info.versionName == null ? "2.0.1" : info.versionName;
+            return info.versionName == null ? "2.0.2" : info.versionName;
         } catch (Exception ignored) {
-            return "2.0.1";
+            return "2.0.2";
         }
     }
 
