@@ -39,6 +39,31 @@ def _diag_write(message):
         pass
 
 
+def _diag_previous_unfinished():
+    try:
+        diag_path = _diag_file_path()
+        if not os.path.exists(diag_path):
+            return ""
+        with open(diag_path, "r", encoding="utf-8", errors="replace") as fh:
+            lines = fh.readlines()[-120:]
+        last_start = -1
+        for idx, line in enumerate(lines):
+            if "COMPARE START" in line:
+                last_start = idx
+        if last_start < 0:
+            return ""
+        tail = lines[last_start:]
+        if any("COMPARE DONE" in line or "COMPARE ERROR" in line for line in tail):
+            return ""
+        stage = "запуск сравнения"
+        for line in tail:
+            if "stage=" in line:
+                stage = line.split("stage=", 1)[1].strip()
+        return stage[:160]
+    except Exception:
+        return ""
+
+
 def _safe_compare_execute(screen, tolerance):
     try:
         _diag_write(
@@ -96,9 +121,9 @@ def _safe_run_compare(self, *_):
         _diag_write("button=compare pressed")
 
         # В 1.7 вычисления выполнялись в отдельном Python-потоке. На части Android-
-        # устройств это приводило к аварийному завершению процесса python-for-android.
-        # Для актов сверки текущего размера безопаснее выполнить чистые Python-вычисления
-        # в основном цикле Kivy после короткой задержки, чтобы экран успел перерисоваться.
+        # устройств это могло приводить к аварийному завершению процесса python-for-android.
+        # В 1.8 чистые Python-вычисления запускаются в основном цикле Kivy после короткой
+        # задержки: экран успевает обновиться, а исключения остаются под контролем приложения.
         Clock.schedule_once(lambda dt: _safe_compare_execute(self, tolerance), 0.08)
     except BaseException as exc:
         _diag_write(f"RUN_COMPARE ERROR | {type(exc).__name__}: {exc}")
@@ -111,13 +136,25 @@ def _safe_run_compare(self, *_):
 
 def _safe_android_build(self):
     root = _SAFE_ORIGINAL_BUILD(self)
+    previous_stage = _diag_previous_unfinished()
     try:
         import faulthandler
         self._compare_fault_file = open(_diag_file_path(), "a", encoding="utf-8")
         faulthandler.enable(file=self._compare_fault_file, all_threads=True)
-        _diag_write("APP START | Safe compare 1.8")
     except Exception as exc:
         _diag_write(f"faulthandler unavailable: {exc}")
+    _diag_write("APP START | Safe compare 1.8")
+    if previous_stage:
+        try:
+            root.result_label.color = DANGER
+            root.result_label.text = (
+                "[b]Обнаружено аварийное завершение прошлой сверки.[/b]\n"
+                f"Последний этап: {previous_stage}\n"
+                "Повторите сравнение в версии 1.8. Если приложение снова закроется, "
+                "после следующего запуска здесь будет показан последний достигнутый этап."
+            )
+        except Exception:
+            pass
     return root
 
 
