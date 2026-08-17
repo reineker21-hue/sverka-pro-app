@@ -3,8 +3,9 @@ title = Сравнение АС from NB
 package.name = sverkapro
 package.domain = ru.slavitsa
 source.dir = .
-source.include_exts = py,png,jpg,kv,atlas
-version = 1.2.0
+source.include_exts = py,png
+source.exclude_patterns = prebuild_patch.py,smart_patch.py,generate_assets.py
+version = 1.3.0
 requirements = python3,kivy,openpyxl,et_xmlfile,pyjnius,xlrd==2.0.1
 orientation = portrait
 fullscreen = 0

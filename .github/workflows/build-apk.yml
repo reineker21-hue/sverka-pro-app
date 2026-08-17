@@ -51,6 +51,7 @@ jobs:
       - name: Apply app changes
         run: |
           python prebuild_patch.py
+          python smart_patch.py
           python generate_assets.py
 
       - name: Verify Python source
