@@ -54,13 +54,13 @@ jobs:
           python smart_patch.py
           python automation_patch.py
           python fns_protocol_patch.py
-          python reconcile_accuracy_patch.py
-          python stability_excel_ui_patch.py
-          python lean_runtime_patch.py
+          python stable_runtime_patch.py
           python generate_assets.py
 
       - name: Verify Python source
-        run: python -m py_compile main.py
+        run: |
+          python -m py_compile main.py reconcile_core.py
+          python runtime_smoke_test.py
 
       - name: Show versions
         run: |
