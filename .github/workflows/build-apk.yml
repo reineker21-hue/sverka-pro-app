@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Native Android APK
 
 on:
   workflow_dispatch:
@@ -15,17 +15,13 @@ permissions:
 
 jobs:
   build:
-    name: Build APK
+    name: Native build and Android self-test
     runs-on: ubuntu-24.04
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -33,58 +29,50 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y git zip unzip autoconf libtool libltdl-dev pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev automake autopoint gettext
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Install Rust
-        run: |
-          curl https://sh.rustup.rs -sSf | sh -s -- -y
-          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
 
-      - name: Install Buildozer
+      - name: Test native reconciliation engine
         run: |
-          python -m pip install --upgrade pip setuptools wheel
-          python -m pip install buildozer "cython==0.29.36" pillow
+          mkdir -p build/native-tests
+          javac -encoding UTF-8 -d build/native-tests app/src/main/java/ru/slavitsa/sverkapro/core/*.java tools/NativeEngineTest.java
+          java -cp build/native-tests NativeEngineTest
 
-      - name: Apply app changes
+      - name: Build native APK
+        run: gradle --no-daemon --stacktrace :app:assembleDebug :app:lintDebug
+
+      - name: Prepare APK artifact
         run: |
-          python prebuild_patch.py
-          python smart_patch.py
-          python automation_patch.py
-          python fns_protocol_patch.py
-          python stable_runtime_patch.py
-          python generate_assets.py
+          test -f app/build/outputs/apk/debug/app-debug.apk
+          unzip -t app/build/outputs/apk/debug/app-debug.apk >/dev/null
+          cp app/build/outputs/apk/debug/app-debug.apk Sverka-PRO-2.0.0-native.apk
+          sha256sum Sverka-PRO-2.0.0-native.apk
 
-      - name: Verify Python source
+      - name: Enable KVM
         run: |
-          python -m py_compile main.py reconcile_core.py
-          python runtime_smoke_test.py
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm || true
 
-      - name: Show versions
-        run: |
-          python --version
-          java -version
-          rustc --version
-          buildozer --version
-
-      - name: Build debug APK
-        run: buildozer -v android debug
-
-      - name: List generated files
-        if: always()
-        run: |
-          echo "=== bin ==="
-          ls -lah bin || true
-          echo "=== APK search ==="
-          find .buildozer -type f \( -name "*.apk" -o -name "*.aab" \) -print 2>/dev/null | head -50 || true
+      - name: Test result rendering on Android
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          arch: x86_64
+          profile: Nexus 6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/run_native_selftest.sh
 
       - name: Upload APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Sverka-PRO-APK
-          path: bin/*.apk
+          name: Sverka-PRO-Native-APK
+          path: Sverka-PRO-2.0.0-native.apk
           if-no-files-found: error
           retention-days: 14
