@@ -54,6 +54,7 @@ jobs:
           python smart_patch.py
           python automation_patch.py
           python fns_protocol_patch.py
+          python reconcile_accuracy_patch.py
           python generate_assets.py
 
       - name: Verify Python source
