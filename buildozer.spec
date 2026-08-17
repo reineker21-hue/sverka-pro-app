@@ -9,7 +9,7 @@ requirements = python3,kivy,openpyxl,pyjnius
 orientation = portrait
 fullscreen = 0
 
-android.api = 35
+android.api = 34
 android.minapi = 23
 android.ndk = 25b
 android.ndk_api = 23
