@@ -1,0 +1,78 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git zip unzip autoconf libtool pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo6 cmake libffi-dev libssl-dev automake autopoint gettext
+
+      - name: Install Rust
+        run: |
+          curl https://sh.rustup.rs -sSf | sh -s -- -y
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Install Buildozer
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install buildozer setuptools "cython==0.29.34"
+
+      - name: Verify Python source
+        run: python -m py_compile main.py
+
+      - name: Show versions
+        run: |
+          python --version
+          java -version
+          rustc --version
+          buildozer --version
+
+      - name: Build debug APK
+        run: buildozer -v android debug
+
+      - name: List generated files
+        if: always()
+        run: |
+          echo "=== bin ==="
+          ls -lah bin || true
+          echo "=== APK search ==="
+          find .buildozer -type f \( -name "*.apk" -o -name "*.aab" \) -print 2>/dev/null | head -50 || true
+
+      - name: Upload APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Sverka-PRO-APK
+          path: bin/*.apk
+          if-no-files-found: error
+          retention-days: 14
