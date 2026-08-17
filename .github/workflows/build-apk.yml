@@ -52,6 +52,7 @@ jobs:
         run: |
           python prebuild_patch.py
           python smart_patch.py
+          python automation_patch.py
           python generate_assets.py
 
       - name: Verify Python source
