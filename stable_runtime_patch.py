@@ -5,7 +5,7 @@ text = path.read_text(encoding='utf-8')
 
 if '__version__ = "1.5.0"' not in text:
     raise RuntimeError('Stable runtime должен применяться непосредственно к проверенной версии 1.5.0')
-text = text.replace('__version__ = "1.5.0"', '__version__ = "1.11.0"', 1)
+text = text.replace('__version__ = "1.5.0"', '__version__ = "1.12.0"', 1)
 
 # Keep the Excel/Microsoft 365 visual refresh, but do not bring back any of the
 # post-1.5 threading / crash-diagnostic overrides.
@@ -32,7 +32,7 @@ for old, new in (
     text = text.replace(old, new, 1)
 
 OVERRIDES = r'''
-# ===== Stable runtime 1.11: safe integer date engine =====
+# ===== Stable runtime 1.12: render-safe comparison result =====
 from reconcile_core import (
     compare_rows as _core_compare_rows,
     totals_rows as _core_totals_rows,
@@ -145,8 +145,12 @@ def _stable_run_compare(self, *_):
     self.save_button.disabled = True
     if hasattr(self, "fns_button"):
         self.fns_button.disabled = True
+    # Keep this status deliberately short and without markup. On a few Android
+    # GPU/font combinations the previous long marked-up result was the only
+    # native operation left after the pure-Python comparison had completed.
+    self.result_label.markup = False
     self.result_label.color = MUTED
-    self.result_label.text = "Сравнение выполняется…"
+    self.result_label.text = "Выполняется сравнение..."
 
     try:
         result, prep1, prep2 = _core_compare_rows(
@@ -167,18 +171,23 @@ def _stable_run_compare(self, *_):
         accrual_diff = prep1["accrual"] - prep2["accrual"]
         settlement_diff = prep1["settlement"] - prep2["settlement"]
 
+        # Use a fixed-size, plain Label. Avoiding markup, the bullet glyph and
+        # a dynamic height prevents the result texture/layout rebuild that was
+        # not covered by the old Android test and could terminate the process
+        # after the comparison itself had already succeeded.
+        result_text = "\n".join((
+            "Сверка завершена",
+            f"Требуют проверки: {len(only1) + len(only2)}",
+            f"Только в акте 1: {len(only1)}; в акте 2: {len(only2)}",
+            f"Совпадений: {len(matches)}",
+            f"Начальное сальдо, разница: {money(opening_diff)} руб.",
+            f"Начисления, разница: {money(accrual_diff)} руб.",
+            f"Оплаты, разница: {money(settlement_diff)} руб.",
+            f"Конечное сальдо, разница: {money(ending_diff)} руб.",
+        ))
+        self.result_label.markup = False
         self.result_label.color = TEXT
-        self.result_label.height = dp(190)
-        self.result_label.text = (
-            f"[b]Сверка завершена[/b]\n"
-            f"Документов требуют проверки: {len(only1) + len(only2)}\n"
-            f"Только в акте 1: {len(only1)} • Только в акте 2: {len(only2)}\n"
-            f"Совпадений: {len(matches)}\n\n"
-            f"Начальное сальдо (Акт 1 − Акт 2): {money(opening_diff)} руб.\n"
-            f"[b]Разница начислений:[/b] {money(accrual_diff)} руб.\n"
-            f"[b]Разница оплат:[/b] {money(settlement_diff)} руб.\n"
-            f"[b]Разница конечного сальдо:[/b] {money(ending_diff)} руб."
-        )
+        self.result_label.text = result_text
         self.save_button.disabled = False
         if hasattr(self, "fns_button"):
             self.fns_button.disabled = False
@@ -214,7 +223,7 @@ def _stable_on_save_uri(self, uri):
 MainScreen.load_file = _stable_load_file
 MainScreen.run_compare = _stable_run_compare
 MainScreen.on_save_uri = _stable_on_save_uri
-# ===== /Stable runtime 1.11 =====
+# ===== /Stable runtime 1.12 =====
 '''
 
 marker = 'if __name__ == "__main__":'
@@ -229,4 +238,4 @@ text = text.replace(
 )
 
 path.write_text(text, encoding='utf-8')
-print('Stable runtime 1.11 applied with safe integer date engine')
+print('Stable runtime 1.12 applied with render-safe result')
