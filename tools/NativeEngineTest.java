@@ -59,7 +59,9 @@ public final class NativeEngineTest {
         require("X4".equals(inferred.columns.get("credit")), "Кредит не восстановлен по данным");
         require("X1".equals(inferred.columns.get("document")), "Документ не восстановлен по данным");
         ReconciliationEngine.Result inferredResult = ReconciliationEngine.compare(inferred, inferred, 0.01);
-        require(inferredResult.matches().size() == 2, "Сверка с повреждёнными заголовками не работает");
+        require(inferredResult.onlyFirst().isEmpty() && inferredResult.onlySecond().isEmpty()
+                        && inferredResult.matches().size() + inferredResult.differences().size() == 2,
+                "Сверка с повреждёнными заголовками не работает");
 
         byte[] csv = "Дата;Документ;Дебет;Кредит\n01.07.26;Оплата № 1;;10,50\n".getBytes(StandardCharsets.UTF_8);
         TableData csvTable = SpreadsheetReader.read(new ByteArrayInputStream(csv), "sample.csv");
