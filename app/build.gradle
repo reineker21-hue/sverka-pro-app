@@ -10,8 +10,8 @@ android {
         applicationId "ru.slavitsa.sverkapro"
         minSdk 23
         targetSdk 34
-        versionCode 20000
-        versionName "2.0.0"
+        versionCode 20001
+        versionName "2.0.1"
     }
 
     buildTypes {
@@ -42,4 +42,7 @@ android {
 
 dependencies {
     coreLibraryDesugaring "com.android.tools:desugar_jdk_libs:2.1.4"
+    implementation("net.sourceforge.jexcelapi:jxl:2.6.12") {
+        exclude group: "log4j", module: "log4j"
+    }
 }
