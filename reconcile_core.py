@@ -1,5 +1,4 @@
 import re
-from datetime import datetime
 from difflib import SequenceMatcher
 
 SUMMARY_MARKERS = (
@@ -27,6 +26,39 @@ VISUAL = str.maketrans({"А":"A","В":"B","Е":"E","К":"K","М":"M","Н":"H","�
 DATE_RE = re.compile(r"(?<!\d)(?:(\d{1,2})[./\-\s]+(\d{1,2})[./\-\s]+(\d{2,4})|(\d{4})[./\-](\d{1,2})[./\-](\d{1,2}))(?!\d)")
 NUM_LABEL_RE = re.compile(r"(?:№|номер|n(?:o)?\.?)\s*([A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9./_-]{1,40})", re.I)
 TOKEN_RE = re.compile(r"[A-Za-zА-Яа-я0-9][A-Za-zА-Яа-я0-9./_-]{1,40}")
+
+
+def _is_leap_year(year):
+    return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
+
+
+def _valid_date(year, month, day):
+    if not 1 <= year <= 9999 or not 1 <= month <= 12:
+        return False
+    month_days = (31, 29 if _is_leap_year(year) else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+    return 1 <= day <= month_days[month - 1]
+
+
+def _date_text(year, month, day):
+    if not _valid_date(year, month, day):
+        return ""
+    return f"{year:04d}-{month:02d}-{day:02d}"
+
+
+def _date_serial(value):
+    try:
+        year, month, day = (int(part) for part in str(value).split("-"))
+    except Exception:
+        return None
+    if not _valid_date(year, month, day):
+        return None
+    adjusted_year = year - (1 if month <= 2 else 0)
+    era = adjusted_year // 400
+    year_of_era = adjusted_year - era * 400
+    adjusted_month = month - 3 if month > 2 else month + 9
+    day_of_year = (153 * adjusted_month + 2) // 5 + day - 1
+    day_of_era = year_of_era * 365 + year_of_era // 4 - year_of_era // 100 + day_of_year
+    return era * 146097 + day_of_era
 
 
 def ntext(value):
@@ -59,9 +91,11 @@ def number(value):
 def smart_dates(value):
     if value is None:
         return ()
-    if hasattr(value, "strftime"):
+    if all(hasattr(value, attr) for attr in ("year", "month", "day")):
         try:
-            return (value.strftime("%Y-%m-%d"),)
+            parsed = _date_text(int(value.year), int(value.month), int(value.day))
+            if parsed:
+                return (parsed,)
         except Exception:
             pass
     result = []
@@ -73,7 +107,9 @@ def smart_dates(value):
                     year += 2000 if year < 70 else 1900
             else:
                 year, month, day = map(int, match.group(4, 5, 6))
-            parsed = datetime(year, month, day).strftime("%Y-%m-%d")
+            parsed = _date_text(year, month, day)
+            if not parsed:
+                continue
             if parsed not in result:
                 result.append(parsed)
         except Exception:
@@ -202,11 +238,12 @@ def date_distance(a, b):
     best = None
     for da in a.get("dates", ()):
         for db in b.get("dates", ()):
-            try:
-                distance = abs((datetime.strptime(da, "%Y-%m-%d") - datetime.strptime(db, "%Y-%m-%d")).days)
-                best = distance if best is None else min(best, distance)
-            except Exception:
-                pass
+            left = _date_serial(da)
+            right = _date_serial(db)
+            if left is None or right is None:
+                continue
+            distance = abs(left - right)
+            best = distance if best is None else min(best, distance)
     return best
 
 
