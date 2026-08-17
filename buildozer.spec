@@ -5,7 +5,7 @@ package.domain = ru.slavitsa
 source.dir = .
 source.include_exts = py,png
 source.exclude_patterns = prebuild_patch.py,smart_patch.py,automation_patch.py,fns_protocol_patch.py,reconcile_accuracy_patch.py,stability_excel_ui_patch.py,safe_compare_patch.py,lean_runtime_patch.py,stable_runtime_patch.py,runtime_smoke_test.py,generate_assets.py
-version = 1.11.0
+version = 1.12.0
 requirements = python3,kivy,openpyxl,et_xmlfile,pyjnius,xlrd==2.0.1
 orientation = portrait
 fullscreen = 0
