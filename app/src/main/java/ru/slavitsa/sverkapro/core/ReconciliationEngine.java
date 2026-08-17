@@ -52,6 +52,8 @@ public final class ReconciliationEngine {
         double safeTolerance = Math.max(0.01, Math.abs(tolerance));
         Prepared left = prepare(first);
         Prepared right = prepare(second);
+        validatePrepared(first, left, 1);
+        validatePrepared(second, right, 2);
         Pairing pairing = pair(left, right);
 
         List<Difference> differences = new ArrayList<>();
@@ -127,6 +129,16 @@ public final class ReconciliationEngine {
         if (opening == null && !balances.isEmpty()) opening = balances.get(0).amount;
         if (ending == null && !balances.isEmpty()) ending = balances.get(balances.size() - 1).amount;
         return new Prepared(items, opening, ending, Math.abs(accrual), Math.abs(settlement));
+    }
+
+    private static void validatePrepared(TableData table, Prepared prepared, int actNumber) {
+        if (!prepared.items.isEmpty()) return;
+        String debit = table.columns.get("debit");
+        String credit = table.columns.get("credit");
+        throw new IllegalArgumentException("В акте " + actNumber + " не распознано ни одной операции. "
+                + "Строк прочитано: " + table.rows.size() + ", дебет: "
+                + (debit == null ? "не найден" : debit) + ", кредит: "
+                + (credit == null ? "не найден" : credit) + ". Пересохраните акт в XLSX и выберите его заново.");
     }
 
     private static boolean isTransaction(String text, Map<String, String> columns,
