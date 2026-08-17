@@ -9,7 +9,11 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 public final class TableData {
-    private static final Pattern NON_HEADER = Pattern.compile("[^a-zа-яё0-9]+");
+    private static final Pattern DATE_IN_TEXT = Pattern.compile(
+            "(?<!\\d)(?:\\d{1,2}[./\\-]\\d{1,2}[./\\-]\\d{2,4}|\\d{4}[./\\-]\\d{1,2}[./\\-]\\d{1,2})(?!\\d)");
+    private static final List<String> DOCUMENT_HINTS = List.of(
+            "оплата", "отгрузка", "поступление", "реализация", "корректировка",
+            "возврат", "накладная", "счет", "счёт", "акт", "упд", "платеж", "платёж");
 
     private static final Map<String, List<String>> ALIASES;
     static {
@@ -40,7 +44,7 @@ public final class TableData {
         this.sheetName = sheetName;
         this.headers = Collections.unmodifiableList(headers);
         this.rows = Collections.unmodifiableList(rows);
-        this.columns = Collections.unmodifiableMap(detectColumns(headers));
+        this.columns = Collections.unmodifiableMap(detectColumns(headers, rows));
     }
 
     public static TableData fromMatrix(String sourceName, String sheetName, List<List<Object>> matrix) {
@@ -75,7 +79,13 @@ public final class TableData {
     }
 
     public static String normalizeHeader(Object value) {
-        return NON_HEADER.matcher(normalizeText(value)).replaceAll("");
+        String text = normalizeText(value);
+        StringBuilder normalized = new StringBuilder(text.length());
+        for (int index = 0; index < text.length(); index++) {
+            char character = text.charAt(index);
+            if (Character.isLetterOrDigit(character)) normalized.append(character);
+        }
+        return normalized.toString();
     }
 
     private static int chooseHeaderRow(List<List<Object>> matrix) {
@@ -144,5 +154,164 @@ public final class TableData {
             columns.put(entry.getKey(), best);
         }
         return columns;
+    }
+
+    private static Map<String, String> detectColumns(List<String> headers, List<Map<String, Object>> rows) {
+        Map<String, String> columns = detectColumns(headers);
+        if (columns.get("debit") != null && columns.get("credit") != null
+                && columns.get("document") != null) return columns;
+
+        List<ColumnProfile> profiles = profileColumns(headers, rows);
+        inferMoneyColumns(columns, profiles);
+        if (columns.get("document") == null) {
+            ColumnProfile document = profiles.stream()
+                    .filter(profile -> !profile.header.equals(columns.get("debit"))
+                            && !profile.header.equals(columns.get("credit")))
+                    .max((left, right) -> Integer.compare(left.documentScore(), right.documentScore()))
+                    .orElse(null);
+            if (document != null && document.documentScore() > 0) columns.put("document", document.header);
+        }
+        if (columns.get("date") == null) {
+            ColumnProfile date = profiles.stream()
+                    .filter(profile -> !profile.header.equals(columns.get("debit"))
+                            && !profile.header.equals(columns.get("credit")))
+                    .max((left, right) -> Integer.compare(left.dateCells, right.dateCells))
+                    .orElse(null);
+            if (date != null && date.dateCells > 0) columns.put("date", date.header);
+        }
+        return columns;
+    }
+
+    private static List<ColumnProfile> profileColumns(List<String> headers, List<Map<String, Object>> rows) {
+        List<ColumnProfile> profiles = new ArrayList<>();
+        for (int index = 0; index < headers.size(); index++) {
+            String header = headers.get(index);
+            ColumnProfile profile = new ColumnProfile(index, header);
+            Double previous = null;
+            int sequentialSteps = 0;
+            for (Map<String, Object> row : rows) {
+                Object value = row.get(header);
+                if (value == null || value.toString().trim().isEmpty()) continue;
+                Double numeric = numericValue(value);
+                if (numeric != null) {
+                    profile.numericCells++;
+                    if (value instanceof Number) profile.numberObjects++;
+                    if (Math.abs(numeric - Math.rint(numeric)) > 0.0000001) profile.decimalCells++;
+                    profile.maxAbsolute = Math.max(profile.maxAbsolute, Math.abs(numeric));
+                    if (previous != null && Math.abs(numeric - previous - 1.0) < 0.0000001) sequentialSteps++;
+                    previous = numeric;
+                }
+                String text = normalizeText(value);
+                if (DATE_IN_TEXT.matcher(text).find()) profile.dateCells++;
+                for (String hint : DOCUMENT_HINTS) {
+                    if (text.contains(hint)) {
+                        profile.documentHints++;
+                        break;
+                    }
+                }
+            }
+            profile.sequenceLike = profile.numericCells >= 5
+                    && sequentialSteps >= Math.max(3, (profile.numericCells - 1) * 3 / 4);
+            profiles.add(profile);
+        }
+        return profiles;
+    }
+
+    private static void inferMoneyColumns(Map<String, String> columns, List<ColumnProfile> profiles) {
+        String debit = columns.get("debit");
+        String credit = columns.get("credit");
+        if (debit != null && credit != null) return;
+
+        if (debit != null || credit != null) {
+            ColumnProfile known = findProfile(profiles, debit != null ? debit : credit);
+            ColumnProfile neighbor = bestMoneyNeighbor(profiles, known);
+            if (neighbor != null) columns.put(debit == null ? "debit" : "credit", neighbor.header);
+            return;
+        }
+
+        ColumnProfile bestLeft = null;
+        ColumnProfile bestRight = null;
+        int bestScore = Integer.MIN_VALUE;
+        for (int left = 0; left < profiles.size(); left++) {
+            for (int right = left + 1; right < profiles.size() && right <= left + 2; right++) {
+                ColumnProfile a = profiles.get(left);
+                ColumnProfile b = profiles.get(right);
+                if (a.moneyScore() <= 0 && b.moneyScore() <= 0) continue;
+                int score = a.moneyScore() + b.moneyScore() + (right == left + 1 ? 40 : 0);
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestLeft = a;
+                    bestRight = b;
+                }
+            }
+        }
+        if (bestLeft != null) {
+            columns.put("debit", bestLeft.header);
+            columns.put("credit", bestRight.header);
+            return;
+        }
+
+        ColumnProfile single = profiles.stream()
+                .max((left, right) -> Integer.compare(left.moneyScore(), right.moneyScore())).orElse(null);
+        if (single != null && single.moneyScore() > 0) columns.put("debit", single.header);
+    }
+
+    private static ColumnProfile bestMoneyNeighbor(List<ColumnProfile> profiles, ColumnProfile known) {
+        if (known == null) return null;
+        ColumnProfile best = null;
+        int bestScore = Integer.MIN_VALUE;
+        for (ColumnProfile profile : profiles) {
+            int distance = Math.abs(profile.index - known.index);
+            if (distance == 0 || distance > 2) continue;
+            int score = profile.moneyScore() + (distance == 1 ? 40 : 0);
+            if (score > bestScore) {
+                best = profile;
+                bestScore = score;
+            }
+        }
+        return bestScore > 0 ? best : null;
+    }
+
+    private static ColumnProfile findProfile(List<ColumnProfile> profiles, String header) {
+        if (header == null) return null;
+        for (ColumnProfile profile : profiles) if (profile.header.equals(header)) return profile;
+        return null;
+    }
+
+    private static Double numericValue(Object value) {
+        if (value instanceof Number number) return number.doubleValue();
+        String text = value == null ? "" : value.toString().trim()
+                .replace("\u00A0", "").replace(" ", "").replace(',', '.');
+        if (text.isEmpty()) return null;
+        if (text.startsWith("(") && text.endsWith(")")) text = "-" + text.substring(1, text.length() - 1);
+        try { return Double.parseDouble(text); } catch (NumberFormatException ignored) { return null; }
+    }
+
+    private static final class ColumnProfile {
+        final int index;
+        final String header;
+        int numericCells;
+        int numberObjects;
+        int decimalCells;
+        int dateCells;
+        int documentHints;
+        double maxAbsolute;
+        boolean sequenceLike;
+
+        ColumnProfile(int index, String header) {
+            this.index = index;
+            this.header = header;
+        }
+
+        int moneyScore() {
+            if (numericCells == 0 || sequenceLike) return 0;
+            int score = numericCells * 3 + numberObjects * 4 + decimalCells * 6;
+            if (maxAbsolute >= 100.0) score += 25;
+            return score;
+        }
+
+        int documentScore() {
+            return documentHints * 20 + dateCells * 4;
+        }
     }
 }
