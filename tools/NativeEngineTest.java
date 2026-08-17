@@ -8,6 +8,8 @@ import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 public final class NativeEngineTest {
     public static void main(String[] args) throws Exception {
@@ -34,6 +36,18 @@ public final class NativeEngineTest {
         XlsxReportWriter.write(result, reportBytes);
         TableData report = SpreadsheetReader.read(new ByteArrayInputStream(reportBytes.toByteArray()), "report.xlsx");
         require("ИТОГ".equals(report.sheetName), "Excel-отчёт не читается обратно");
+        require(reportHasDimensions(reportBytes.toByteArray()), "В листах Excel-отчёта отсутствует dimension");
+
+        List<List<Object>> invalidRows = List.of(
+                List.of("Дата", "Документ", "Дебет", "Кредит"),
+                List.of("01.07.26", "Поступление № 1", "", ""));
+        boolean rejected = false;
+        try {
+            ReconciliationEngine.compare(TableData.fromMatrix("invalid.xls", "Лист1", invalidRows), second, 0.01);
+        } catch (IllegalArgumentException expected) {
+            rejected = expected.getMessage().contains("не распознано ни одной операции");
+        }
+        require(rejected, "Пустой результат распознавания должен блокировать ложную сверку");
 
         byte[] csv = "Дата;Документ;Дебет;Кредит\n01.07.26;Оплата № 1;;10,50\n".getBytes(StandardCharsets.UTF_8);
         TableData csvTable = SpreadsheetReader.read(new ByteArrayInputStream(csv), "sample.csv");
@@ -43,5 +57,19 @@ public final class NativeEngineTest {
 
     private static void require(boolean condition, String message) {
         if (!condition) throw new AssertionError(message);
+    }
+
+    private static boolean reportHasDimensions(byte[] data) throws Exception {
+        int sheets = 0;
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(data))) {
+            ZipEntry entry;
+            while ((entry = zip.getNextEntry()) != null) {
+                if (!entry.getName().startsWith("xl/worksheets/sheet")) continue;
+                sheets++;
+                String xml = new String(zip.readAllBytes(), StandardCharsets.UTF_8);
+                if (!xml.contains("<dimension ref=\"")) return false;
+            }
+        }
+        return sheets == 5;
     }
 }
